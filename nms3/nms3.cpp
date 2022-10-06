@@ -217,8 +217,6 @@ static int thr_find_from_r(long long r, long long step, long long offset) {
 		gbest = ffr;
 	}
 
-	std::cout << offset << " done\n";
-
 	mlock.unlock();
 
 	return 1;
@@ -234,9 +232,8 @@ static int thr_find_from_r(long long r, long long step, long long offset) {
  
 int main()
 {
-	best ffrbest;
+	best ffrbest{};
 	
-
 	gbest.best = 0;
 	
 	std::cout << std::setprecision(2);
@@ -248,38 +245,51 @@ int main()
 
 start:
 	gbest.best = 0;
-	gcycles = 0;
-	std::cout << "r:";
+	
+
+	std::cout << "from:";
 	std::cin >> from;
 	if (from == 0) { return 0; }
-	//std::cout << "to:";
-	//std::cin >> to;
-	//if (to == 0) { return 0; }
+
+	std::cout << "to:";
+	std::cin >> to;
+	if (to == 0) { return 0; }
 	
-	std::chrono::high_resolution_clock::time_point ffr1 = std::chrono::high_resolution_clock::now();
+	for (long long r = from; r < to; r ++) {
 
-	std::vector<std::thread> thr(gnumthreads);
+		gcycles = 0;
 
-	for (int offset = 0; offset < gnumthreads; offset++) {
-		thr[offset] = std::thread(thr_find_from_r, from, gnumthreads, offset);
+		std::chrono::high_resolution_clock::time_point ffr1 = std::chrono::high_resolution_clock::now();
+
+		std::vector<std::thread> thr(gnumthreads);
+
+		for (int offset = 0; offset < gnumthreads; offset++) {
+			thr[offset] = std::thread(thr_find_from_r, r, gnumthreads, offset);
+		}
+
+		for (int i = 0; i < gnumthreads; i++) {
+			thr[i].join();
+		}
+
+		std::chrono::high_resolution_clock::time_point ffr2 = std::chrono::high_resolution_clock::now();
+		auto total_time = std::chrono::duration_cast<std::chrono::duration<double>>(ffr2 - ffr1);
+
+		unsigned long long cps = gcycles / total_time.count();
+
+		std::cout << "best:" << gbest.best << " r:" << gbest.r <<
+			" time:" << format_seconds(total_time.count()).num << format_seconds(total_time.count()).symbol <<
+			" cycles:" << format_long(gcycles).num << format_long(gcycles).symbol <<
+			" cps:" << format_long(cps).num << format_long(cps).symbol << "\n";
+
+		//print_square(gbest.n, gbest.m, gbest.e);
+
+		if (gbest.best >= ffrbest.best) {
+			ffrbest = gbest;
+		}
 	}
-	
-	for (int i = 0; i < gnumthreads; i++) {
-		thr[i].join();
-	}
 
-	std::chrono::high_resolution_clock::time_point ffr2 = std::chrono::high_resolution_clock::now();
-	auto total_time = std::chrono::duration_cast<std::chrono::duration<double>>(ffr2 - ffr1);
-
-	unsigned long long cps = gcycles / total_time.count();
-
-	std::cout << "best:" << gbest.best << " r:" << gbest.r << 
-		" time:" << format_seconds(total_time.count()).num << format_seconds(total_time.count()).symbol << 
-		" cycles:" << format_long(gcycles).num << format_long(gcycles).symbol << 
-		" cps:" << format_long(cps).num << format_long(cps).symbol << "\n";
-
-	print_square(gbest.n, gbest.m, gbest.e);
-
+	std::cout << "f.best:" << ffrbest.best << " f.r:" << ffrbest.r << "\n\n";
+	print_square(ffrbest.n, ffrbest.m, ffrbest.e);
 
 	goto start;
 
